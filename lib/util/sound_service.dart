@@ -38,6 +38,16 @@ class SoundService {
   /// Dedicated player for the vintage bet arpeggio.
   AudioPlayer? _betArpeggioPlayer;
 
+  /// Dedicated player for the classic arcade spin tick.
+  AudioPlayer? _spinTickPlayer;
+
+  /// Dedicated player for the complete roulette sound file.
+  AudioPlayer? _spinLoopPlayer;
+
+  /// Pool of AudioPlayers for notes to prevent cutting them off abruptly.
+  final List<AudioPlayer> _tickPool = [];
+  int _poolIndex = 0;
+
   // ── init ────────────────────────────────────────────────
 
   Future<void> init() async {
@@ -59,11 +69,31 @@ class SoundService {
       _pentatonicPlayers[i] = p;
     }
 
+    // 1b. AudioPlayer Pool to prevent notes cutting off
+    for (var i = 0; i < 6; i++) {
+      final p = AudioPlayer();
+      await p.setReleaseMode(ReleaseMode.stop);
+      await p.setVolume(1.0);
+      _tickPool.add(p);
+    }
+
     // 2. Vintage Bet Arpeggio
     _betArpeggioPlayer = AudioPlayer();
     await _betArpeggioPlayer!.setSource(AssetSource('sounds/vintage_bet.wav'));
     await _betArpeggioPlayer!.setReleaseMode(ReleaseMode.stop);
     await _betArpeggioPlayer!.setVolume(1.0); // Subimos el volumen
+
+    // 2b. Spin Tick Player
+    _spinTickPlayer = AudioPlayer();
+    await _spinTickPlayer!.setSource(AssetSource('sounds/spin.wav'));
+    await _spinTickPlayer!.setReleaseMode(ReleaseMode.stop);
+    await _spinTickPlayer!.setVolume(1.0);
+
+    // 2c. Spin Loop Player (Complete sound track)
+    _spinLoopPlayer = AudioPlayer();
+    await _spinLoopPlayer!.setSource(AssetSource('sounds/videoplayback (mp3cut.net) (1).wav'));
+    await _spinLoopPlayer!.setReleaseMode(ReleaseMode.stop);
+    await _spinLoopPlayer!.setVolume(1.0);
 
     // 3. One-shot players
     for (final effect in SoundEffect.values) {
@@ -80,23 +110,9 @@ class SoundService {
   int _lastTickTimeMs = 0;
   int _lastPlayedNote = -1;
 
-  /// Plays a "Vintage Chirp" using pre-loaded pentatonic scale files.
+  /// Plays a note from the diatonic scale with no stereo balance/panning.
   void playVintageTick(num noteIndex, {double balance = 0.0}) {
-    if (muted) return;
-    
-    // THROTTLE: Límite de 20ms para evitar atascos.
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - _lastTickTimeMs < 20) return;
-    _lastTickTimeMs = now;
-
-    try {
-      final fileIndex = noteIndex.toInt() % 10;
-      final player = _pentatonicPlayers[fileIndex];
-      player?.setBalance(balance);
-      
-      // Disparo limpio sin cortar abruptamente la onda anterior (evita "pops")
-      player?.seek(Duration.zero).then((_) => player.resume());
-    } catch (_) {}
+    // Desactivado temporalmente para usar la pista de audio completa videoplayback.wav
   }
 
   /// Plays the pre-baked descending arpeggio for bet buttons.
@@ -109,13 +125,17 @@ class SoundService {
 
   /// Call when the reel starts spinning.
   void startSpinLoop() {
-    // El audio de fondo original fue removido.
-    // Ahora dependemos de los ticks generados en el bucle principal.
+    if (muted) return;
+    try {
+      _spinLoopPlayer?.seek(Duration.zero).then((_) => _spinLoopPlayer?.resume());
+    } catch (_) {}
   }
 
   /// Call when the reel stops.
   void stopSpinLoop() {
-    // No hacer nada, dejamos que la última nota decaiga naturalmente
+    try {
+      _spinLoopPlayer?.stop();
+    } catch (_) {}
   }
 
   // ── one-shot effects ─────────────────────────────────────
@@ -134,7 +154,11 @@ class SoundService {
 
   void dispose() {
     for (final p in _pentatonicPlayers.values) { p.dispose(); }
+    for (final p in _tickPool) { p.dispose(); }
+    _tickPool.clear();
     _betArpeggioPlayer?.dispose();
+    _spinTickPlayer?.dispose();
+    _spinLoopPlayer?.dispose();
     for (final p in _players.values) { p.dispose(); }
     _players.clear();
   }

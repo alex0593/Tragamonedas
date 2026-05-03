@@ -40,11 +40,11 @@ os.makedirs(output_dir, exist_ok=True)
 
 # E4 = 329.63 Hz (+2 Tonos desde C4)
 root_freq = 329.63 
-ratios = [1.0, 1.125, 1.25, 1.5, 1.66, 2.0, 2.25, 2.5, 3.0, 3.33]
+ratios = [1.0, 1.125, 1.25, 1.333, 1.5, 1.666, 1.875, 2.0, 2.25, 2.5]
 
 # 1. Escala Pentatónica (Duración de 40ms, sin ecos)
 for i, ratio in enumerate(ratios):
-    samples = generate_clean_tick(root_freq * ratio, duration_ms=40, volume=0.45)
+    samples = generate_clean_tick(root_freq * ratio, duration_ms=25, volume=0.45)
     path = os.path.join(output_dir, f"pentatonic_{i}.wav")
     with wave.open(path, 'wb') as f:
         f.setnchannels(1); f.setsampwidth(2); f.setframerate(44100)

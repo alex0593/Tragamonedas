@@ -48,23 +48,27 @@ class SpinEngine {
     required int totalSteps,
     int initialSpeed = 120,
     int topSpeed = 30,
-    int slowdownSteps = 16,   // 16 pasos → ~1920 ms de frenado
+    int slowdownSteps = 18,  // Pasos de frenado más cortos y rápidos
   }) {
     int speed;
-    if (currentStep < 10) {
-      speed = max(topSpeed, initialSpeed - currentStep * 10);
-    } else if (currentStep > totalSteps - slowdownSteps) {
+    // 1. Aceleración progresiva al inicio (Ramp-up)
+    if (currentStep < 16) {
+      speed = initialSpeed - ((initialSpeed - topSpeed) * (currentStep / 16)).round();
+    } 
+    // 2. Desaceleración progresiva al final (Ramp-down)
+    else if (currentStep > totalSteps - slowdownSteps) {
       final intoSlowdown = currentStep - (totalSteps - slowdownSteps);
-      speed = topSpeed + intoSlowdown * 2 + 10 * intoSlowdown;
-    } else {
+      // Freno suave hasta alcanzar 250ms
+      speed = topSpeed + ((250 - topSpeed) * (intoSlowdown / slowdownSteps) * (intoSlowdown / slowdownSteps)).round();
+    } 
+    // 3. Velocidad crucero máxima
+    else {
       speed = topSpeed;
     }
-    return speed.clamp(20, 600);
+    return speed.clamp(20, 260);
   }
 
-  /// Steps calibrated to match 'videoplayback (mp3cut.net) (1).wav' (5.652 s).
-  /// N=113 (125-12), slowdownSteps=16
-  int randomTotalSteps() => 112 + _rng.nextInt(3); // 112-114 ≈ 5.61-5.67 s
+  int randomTotalSteps() => 96 + _rng.nextInt(3); 
 
   int randomSnakeSteps() => 60 + _rng.nextInt(20);
 
