@@ -32,21 +32,43 @@ class SoundService {
   /// One AudioPlayer per one-shot effect.
   final Map<SoundEffect, AudioPlayer> _players = {};
 
-  /// Dedicated looping player for the spin reel sound.
-  AudioPlayer? _spinPlayer;
+  /// Dedicated players for each pentatonic note (0-9).
+  final Map<int, AudioPlayer> _pentatonicPlayers = {};
+
+  /// Dedicated player for the vintage bet arpeggio.
+  AudioPlayer? _betArpeggioPlayer;
 
   // ── init ────────────────────────────────────────────────
 
   Future<void> init() async {
-    // Spin player – uses the real machine recording (10.96 s),
-    // long enough to cover any spin (5-8 s) without looping.
-    _spinPlayer = AudioPlayer();
-    await _spinPlayer!.setReleaseMode(ReleaseMode.stop);
-    await _spinPlayer!.setVolume(0.85);
+    // Configurar AudioContext para evitar que los sonidos se choquen (ducking)
+    // o bajen el volumen de la aplicación.
+    final audioContext = AudioContextConfig(
+      route: AudioContextConfigRoute.system,
+      focus: AudioContextConfigFocus.mixWithOthers,
+      respectSilence: false,
+    ).build();
+    await AudioPlayer.global.setAudioContext(audioContext);
 
-    // One-shot players
+    // 1. Pentatonic notes (Pre-loaded for low latency)
+    for (var i = 0; i < 10; i++) {
+      final p = AudioPlayer();
+      await p.setSource(AssetSource('sounds/pentatonic_$i.wav'));
+      await p.setReleaseMode(ReleaseMode.stop);
+      await p.setVolume(1.0); // Subimos el volumen para que se escuche claro
+      _pentatonicPlayers[i] = p;
+    }
+
+    // 2. Vintage Bet Arpeggio
+    _betArpeggioPlayer = AudioPlayer();
+    await _betArpeggioPlayer!.setSource(AssetSource('sounds/vintage_bet.wav'));
+    await _betArpeggioPlayer!.setReleaseMode(ReleaseMode.stop);
+    await _betArpeggioPlayer!.setVolume(1.0); // Subimos el volumen
+
+    // 3. One-shot players
     for (final effect in SoundEffect.values) {
       final p = AudioPlayer();
+      await p.setSource(AssetSource(_kAssets[effect]!));
       await p.setReleaseMode(ReleaseMode.stop);
       await p.setVolume(1.0);
       _players[effect] = p;
@@ -55,23 +77,45 @@ class SoundService {
 
   // ── spin loop ───────────────────────────────────────────
 
-  /// Call when the reel starts spinning.
-  void startSpinLoop() {
+  int _lastTickTimeMs = 0;
+  int _lastPlayedNote = -1;
+
+  /// Plays a "Vintage Chirp" using pre-loaded pentatonic scale files.
+  void playVintageTick(num noteIndex, {double balance = 0.0}) {
+    if (muted) return;
+    
+    // THROTTLE: Límite de 20ms para evitar atascos.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastTickTimeMs < 20) return;
+    _lastTickTimeMs = now;
+
+    try {
+      final fileIndex = noteIndex.toInt() % 10;
+      final player = _pentatonicPlayers[fileIndex];
+      player?.setBalance(balance);
+      
+      // Disparo limpio sin cortar abruptamente la onda anterior (evita "pops")
+      player?.seek(Duration.zero).then((_) => player.resume());
+    } catch (_) {}
+  }
+
+  /// Plays the pre-baked descending arpeggio for bet buttons.
+  void playBetArpeggio() {
     if (muted) return;
     try {
-      // 'videoplayback (mp3cut.net).wav' = 5.748 s, coordinado con
-      // la animacion (N=129 pasos = 5.760 s, Δ = +12 ms).
-      // ReleaseMode.stop: el archivo suena una sola vez y stopSpinLoop()
-      // lo corta los 12 ms finales si el audio no terminó antes.
-      _spinPlayer?.play(AssetSource('sounds/videoplayback (mp3cut.net) (1).wav'));
+      _betArpeggioPlayer?.seek(Duration.zero).then((_) => _betArpeggioPlayer?.resume());
     } catch (_) {}
+  }
+
+  /// Call when the reel starts spinning.
+  void startSpinLoop() {
+    // El audio de fondo original fue removido.
+    // Ahora dependemos de los ticks generados en el bucle principal.
   }
 
   /// Call when the reel stops.
   void stopSpinLoop() {
-    try {
-      _spinPlayer?.stop();
-    } catch (_) {}
+    // No hacer nada, dejamos que la última nota decaiga naturalmente
   }
 
   // ── one-shot effects ─────────────────────────────────────
@@ -89,7 +133,8 @@ class SoundService {
   // ── dispose ─────────────────────────────────────────────
 
   void dispose() {
-    _spinPlayer?.dispose();
+    for (final p in _pentatonicPlayers.values) { p.dispose(); }
+    _betArpeggioPlayer?.dispose();
     for (final p in _players.values) { p.dispose(); }
     _players.clear();
   }

@@ -76,7 +76,7 @@ class GameController extends StateNotifier<GameState> {
 
   static const int _maxBetPerSymbol = 10;
 
-  void placeBet(String type) {
+  void placeBet(String type, [int? noteIndex]) {
     if (state.isBusy || state.winnings > 0) return;
     final current = state.selectedBets[type] ?? 0;
     // Límite máximo por símbolo
@@ -92,7 +92,16 @@ class GameController extends StateNotifier<GameState> {
     final next = Map<String, int>.from(state.selectedBets);
     next[type] = current + 1;
     state = state.copyWith(selectedBets: next);
-    soundService.play(SoundEffect.bet);
+    
+    // Si pasamos un índice, reproducimos esa nota de la escala de piano.
+    if (noteIndex != null) {
+      // Usamos el noteIndex para la escala pentatónica, y le pasamos un paneo
+      // distribuido de izquierda a derecha (0 a 8) mapeado a (-1.0 a 1.0)
+      final balance = (noteIndex - 4) / 4.0;
+      soundService.playVintageTick(noteIndex, balance: balance);
+    } else {
+      soundService.playBetArpeggio();
+    }
   }
 
   void clearBetsAndHighlights() {
@@ -170,6 +179,14 @@ class GameController extends StateNotifier<GameState> {
       onStep: (step) {
         final slotId = kLightPath[state.currentLightIndex];
         state = state.copyWith(activeSlotId: slotId);
+        
+        // Calculamos el balance estéreo basado en la columna (0 a 6)
+        final pos = kSlotGridPos[slotId]!;
+        final balance = (pos.col - 3) / 3.0; // Rango: -1.0 a 1.0
+
+        // Usamos la escala pentatónica de DO con paneo estéreo
+        soundService.playVintageTick(state.currentLightIndex, balance: balance);
+
         state = state.copyWith(
           currentLightIndex: (state.currentLightIndex + 1) % kLightPath.length,
         );
@@ -237,12 +254,12 @@ class GameController extends StateNotifier<GameState> {
   }
 
   void _afterSpinFinalize() {
-    final keepBets = state.winnings > 0;
     state = state.copyWith(
       phase: SpinPhase.idle,
       activeSlotId: null,
       winnerSlots: const {},
-      selectedBets: keepBets ? state.selectedBets : const {},
+      // Keep selectedBets even after a win or loss as requested.
+      selectedBets: state.selectedBets,
     );
     _hideMessage();
   }
@@ -308,6 +325,13 @@ class GameController extends StateNotifier<GameState> {
           activeSlotId: kLightPath[head],
           activeSnakeSlots: parts,
         );
+
+        // Calculamos el balance estéreo basado en la columna (0 a 6)
+        final pos = kSlotGridPos[kLightPath[head]]!;
+        final balance = (pos.col - 3) / 3.0; // Rango: -1.0 a 1.0
+        
+        soundService.playVintageTick(state.currentLightIndex, balance: balance);
+
         state = state.copyWith(
           currentLightIndex: (state.currentLightIndex + 1) % n,
         );
@@ -381,6 +405,10 @@ class GameController extends StateNotifier<GameState> {
         onStep: (step) {
           state = state.copyWith(
               activeSlotId: kLightPath[state.currentLightIndex]);
+
+          // Pasamos el índice entero para la escala pentatónica
+          soundService.playVintageTick(state.currentLightIndex);
+
           state = state.copyWith(
             currentLightIndex:
                 (state.currentLightIndex + 1) % kLightPath.length,
@@ -431,7 +459,8 @@ class GameController extends StateNotifier<GameState> {
       deactivatedSlots: const {},
       lastWin: eventWinnings,
       lastBet: const {},
-      selectedBets: state.winnings > 0 ? state.selectedBets : const {},
+      // Keep selectedBets as requested.
+      selectedBets: state.selectedBets,
     );
     _hideMessage();
   }

@@ -32,7 +32,9 @@ class BetGrid extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: _order.map((type) {
+        children: _order.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final type = entry.value;
           final sym   = symbolByType(type);
           final count = s.selectedBets[type] ?? 0;
           return Expanded(
@@ -40,7 +42,7 @@ class BetGrid extends ConsumerWidget {
               symbol: sym,
               count: count,
               disabled: disabled,
-              onTap: () => ctrl.placeBet(type),
+              onTap: () => ctrl.placeBet(type, idx),
             ),
           );
         }).toList(),
@@ -191,7 +193,7 @@ class _ArcadeBetButtonState extends State<_ArcadeBetButton> {
               ..setEntry(3, 2, 0.002)  // factor de perspectiva POV
               ..rotateX(-0.35),        // inclinación ~20° (vista desde arriba)
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 60),
+              duration: Duration.zero,
               curve: Curves.easeOut,
               decoration: BoxDecoration(
                 // Cuerpo exterior del botón (base gris/blanca)

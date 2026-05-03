@@ -63,12 +63,8 @@ class SpinEngine {
   }
 
   /// Steps calibrated to match 'videoplayback (mp3cut.net) (1).wav' (5.652 s).
-  /// N=125, slowdownSteps=16:
-  ///   Accel  : ~750 ms  (pasos 0-9)
-  ///   Crucero: ~2970 ms (pasos 10-108)  → velocidad maxima
-  ///   Frenado: ~1920 ms (pasos 109-124) → empieza en ~3.72 s ("sonido 4")
-  ///   Total  :  5640 ms  Δ = -12 ms vs audio (5652 ms)
-  int randomTotalSteps() => 124 + _rng.nextInt(3); // 124-126 ≈ 5.61-5.67 s
+  /// N=113 (125-12), slowdownSteps=16
+  int randomTotalSteps() => 112 + _rng.nextInt(3); // 112-114 ≈ 5.61-5.67 s
 
   int randomSnakeSteps() => 60 + _rng.nextInt(20);
 

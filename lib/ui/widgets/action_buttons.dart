@@ -180,7 +180,7 @@ class _ArcadeButtonState extends State<_ArcadeButton> {
             child: Stack(
               children: [
                 AnimatedPositioned(
-                  duration: const Duration(milliseconds: 70),
+                  duration: Duration.zero,
                   top: yOffset,
                   left: 0,
                   right: 0,

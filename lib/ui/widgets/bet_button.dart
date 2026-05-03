@@ -44,7 +44,7 @@ class BetButton extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             AnimatedContainer(
-              duration: const Duration(milliseconds: 100),
+              duration: Duration.zero,
               transform: Matrix4.translationValues(0, yOffset, 0),
               decoration: BoxDecoration(
                 color: baseColor,

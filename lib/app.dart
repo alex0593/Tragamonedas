@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'state/providers.dart';
 import 'theme/slot_theme.dart';
 import 'ui/screens/slot_screen.dart';
+
 
 class TragamonedasApp extends ConsumerWidget {
   const TragamonedasApp({super.key});
